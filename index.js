@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Bilibili 移除搜索框 placeholder
+// @name         Bilibili 移除搜索框 placeholder 和 title
 // @namespace    http://tampermonkey.net/
-// @version      0.3
-// @description  精准移除或清空 Bilibili 搜索框的 placeholder 属性
-// @author       Qwen3-235B-A22B
+// @version      0.4
+// @description  精准移除或清空 Bilibili 搜索框的 placeholder 和 title 属性
+// @author       YourName
 // @match        *://*.bilibili.com/*
 // @grant        none
 // @run-at       document-idle
@@ -13,33 +13,32 @@
     'use strict';
 
     let retryCount = 0;
-    const maxRetries = 10;
+    const maxRetries = 5;
 
-    function removeOrClearPlaceholder(input) {
+    function removeOrClearPlaceholderAndTitle(input) {
         if (!(input instanceof HTMLInputElement)) return;
 
-        // 方法一：直接删除属性最快
+        // 移除 placeholder 和 title
         input.removeAttribute('placeholder');
+        input.removeAttribute('title');
 
-        // 方法二（可选）：设置为空字符串
-        // input.placeholder = '';
-
-        // 方法三（可选）：设置为一个空格
-        // input.setAttribute('placeholder', '\u00A0'); // 不推荐，容易被覆盖
-
-        // 防止未来 JS 再次修改 placeholder
+        // 防止未来 JS 再次修改 placeholder 或 title
         const origSetAttribute = input.setAttribute;
         input.setAttribute = function (name, value) {
-            if (name.toLowerCase() === 'placeholder') return;
+            const attrName = name.toLowerCase();
+            if (attrName === 'placeholder' || attrName === 'title') return;
             return origSetAttribute.apply(this, arguments);
         };
     }
 
     function tryFindAndModifyInput() {
-        const input = document.querySelector('input.nav-search-input');
-        if (input) {
-            removeOrClearPlaceholder(input);
-            observeInputChanges(input);
+        // 同时匹配 nav-search-input 和 nav-search-content 类的 input
+        const inputs = document.querySelectorAll('input.nav-search-input, input.nav-search-content');
+        if (inputs.length > 0) {
+            inputs.forEach(input => {
+                removeOrClearPlaceholderAndTitle(input);
+                observeInputChanges(input);
+            });
             return true;
         }
 
@@ -56,20 +55,21 @@
             if (input.hasAttribute('placeholder')) {
                 input.removeAttribute('placeholder');
             }
+            if (input.hasAttribute('title')) {
+                input.removeAttribute('title');
+            }
         });
 
         observer.observe(input, {
             attributes: true,
-            attributeFilter: ['placeholder']
+            attributeFilter: ['placeholder', 'title']
         });
     }
 
-    // 使用 DOMContentLoaded 或者延迟执行确保找到元素
     window.addEventListener('DOMContentLoaded', () => {
         tryFindAndModifyInput();
     });
 
-    // 备用：监听整个 body，防止动态插入
     const containerObserver = new MutationObserver(() => {
         tryFindAndModifyInput();
     });
